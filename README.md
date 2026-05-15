@@ -4,6 +4,9 @@ A real-time starling murmuration simulation in React + TypeScript, running on a 
 
 ![flock](https://img.shields.io/badge/boids-1500-blue) ![react](https://img.shields.io/badge/react-18-61dafb) ![typescript](https://img.shields.io/badge/typescript-5-3178c6)
 
+<img width="1483" height="814" alt="Screenshot 2026-05-15 at 08 40 49" src="https://github.com/user-attachments/assets/65512d64-a4af-4c56-800e-a4f021a98b8f" />
+
+
 ## Why "topological" boids
 
 Reynolds' original boids model (1987) is brilliant but wrong in one detail: it assumes each bird looks at neighbours within a fixed radius. Ballerini et al. measured actual starling flocks over Rome with stereoscopic photography and found something different — each bird tracks its **~7 nearest neighbours regardless of distance**. This _topological_ rule, not the metric one, is what keeps real murmurations cohesive when density fluctuates and when a falcon scatters them.
