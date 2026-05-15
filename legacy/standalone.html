@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Murmuration</title>
+<style>
+  :root {
+    --sky-top:    #0b0d1f;
+    --sky-mid:    #1a2138;
+    --sky-bottom: #2b3a5c;
+    --bird:       #e8e8ee;
+    --text:       #cfd2dc;
+    --accent:     #ff7a59;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--text);
+    background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-bottom) 100%);
+  }
+  canvas { display: block; position: absolute; inset: 0; }
+
+  .panel {
+    position: fixed; backdrop-filter: blur(10px);
+    background: rgba(8, 10, 22, 0.55);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  #controls { top: 20px; left: 20px; width: 260px; }
+  #controls h1 { margin: 0 0 2px; font-size: 14px; font-weight: 600; letter-spacing: 0.5px; }
+  #controls .sub { font-size: 10px; opacity: 0.55; margin-bottom: 12px; letter-spacing: 0.4px; text-transform: uppercase; }
+  .slider { margin: 9px 0; }
+  .slider label { display: flex; justify-content: space-between; font-size: 11px;
+    opacity: 0.85; margin-bottom: 3px; font-variant-numeric: tabular-nums; }
+  .slider input[type=range] { width: 100%; accent-color: var(--accent); height: 14px; }
+  .row { display: flex; gap: 6px; margin-top: 10px; }
+  button {
+    flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text); padding: 6px 8px; font-size: 11px; border-radius: 6px;
+    cursor: pointer; font-family: inherit;
+  }
+  button:hover { background: rgba(255,255,255,0.1); }
+
+  #stats { top: 20px; right: 20px; font-size: 11px; min-width: 130px;
+    font-variant-numeric: tabular-nums; }
+  #stats .stat { display: flex; justify-content: space-between; opacity: 0.85; }
+  #stats .stat .v { color: #fff; }
+
+  #legend { bottom: 18px; left: 20px; max-width: 460px; font-size: 11px;
+    line-height: 1.55; opacity: 0.75; }
+  #legend b { color: #fff; font-weight: 500; }
+  #legend .cite { opacity: 0.5; font-style: italic; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="panel" id="controls">
+  <h1>Murmuration</h1>
+  <div class="sub">Boids with topological neighbours</div>
+
+  <div class="slider"><label>Count <span id="v-count">600</span></label>
+    <input id="s-count" type="range" min="50" max="1500" step="10" value="600"></div>
+
+  <div class="slider"><label>Neighbours (k) <span id="v-k">7</span></label>
+    <input id="s-k" type="range" min="2" max="14" step="1" value="7"></div>
+
+  <div class="slider"><label>Separation <span id="v-sep">1.5</span></label>
+    <input id="s-sep" type="range" min="0" max="3" step="0.05" value="1.5"></div>
+
+  <div class="slider"><label>Alignment <span id="v-ali">1.0</span></label>
+    <input id="s-ali" type="range" min="0" max="3" step="0.05" value="1.0"></div>
+
+  <div class="slider"><label>Cohesion <span id="v-coh">1.0</span></label>
+    <input id="s-coh" type="range" min="0" max="3" step="0.05" value="1.0"></div>
+
+  <div class="slider"><label>Predator force <span id="v-pred">8</span></label>
+    <input id="s-pred" type="range" min="0" max="20" step="0.5" value="8"></div>
+
+  <div class="slider"><label>Max speed <span id="v-spd">3.5</span></label>
+    <input id="s-spd" type="range" min="1" max="8" step="0.1" value="3.5"></div>
+
+  <div class="slider"><label>Trail length <span id="v-trail">0.12</span></label>
+    <input id="s-trail" type="range" min="0.02" max="0.5" step="0.01" value="0.12"></div>
+
+  <div class="row">
+    <button id="btn-reset">Reset</button>
+    <button id="btn-scatter">Scatter</button>
+  </div>
+</div>
+
+<div class="panel" id="stats">
+  <div class="stat"><span>FPS</span><span class="v" id="stat-fps">—</span></div>
+  <div class="stat"><span>Boids</span><span class="v" id="stat-boids">—</span></div>
+  <div class="stat"><span>Cohesion λ</span><span class="v" id="stat-order">—</span></div>
+</div>
+
+<div class="panel" id="legend">
+  Each starling watches its <b>k nearest neighbours</b> — not neighbours within a fixed
+  radius. This <i>topological</i> rule is what real Roman starlings actually use
+  <span class="cite">(Ballerini et al., PNAS 2008)</span>, and it's why flocks stay
+  cohesive when they get sparse or dense. The order parameter <b>λ</b> is the magnitude
+  of the average heading direction — 1.0 means perfectly aligned, ~0 means chaos.
+  Move your cursor through the flock to play the falcon.
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+ * Murmuration simulation
+ * Single-file TypeScript-style implementation, plain JS for direct browser use.
+ *
+ * Forces, in order of precedence:
+ *   1. Separation   — short-range repulsion from the closest few neighbours.
+ *   2. Alignment    — match velocity of k-nearest neighbours (Reynolds 1987).
+ *   3. Cohesion     — steer toward the centroid of those neighbours.
+ *   4. Predator     — flee inverse-square from the cursor (falcon proxy).
+ *
+ * Neighbour selection is topological (k=7 by default) rather than metric.
+ * Spatial hash grid gives ~O(n) queries instead of O(n²).
+ * ------------------------------------------------------------------------- */
+
+/** @typedef {{ x:number, y:number, vx:number, vy:number, ax:number, ay:number }} Boid */
+
+const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('c'));
+const ctx = canvas.getContext('2d');
+
+const config = {
+  count: 600,
+  k: 7,
+  sepWeight: 1.5,
+  aliWeight: 1.0,
+  cohWeight: 1.0,
+  predWeight: 8,
+  maxSpeed: 3.5,
+  minSpeed: 1.6,
+  maxForce: 0.18,
+  separationRadius: 18,
+  predatorRadius: 130,
+  trail: 0.12,
+};
+
+/** @type {Boid[]} */
+let boids = [];
+
+let mouse = { x: -1000, y: -1000, active: false };
+
+function resize() {
+  canvas.width  = window.innerWidth  * devicePixelRatio;
+  canvas.height = window.innerHeight * devicePixelRatio;
+  canvas.style.width  = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+function W() { return window.innerWidth;  }
+function H() { return window.innerHeight; }
+
+function spawn(n) {
+  boids = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    boids.push({
+      x: Math.random() * W(),
+      y: Math.random() * H(),
+      vx: Math.cos(a) * config.maxSpeed,
+      vy: Math.sin(a) * config.maxSpeed,
+      ax: 0, ay: 0,
+    });
+  }
+}
+spawn(config.count);
+
+/* --- Spatial hash grid ----------------------------------------------------
+ * Cell size is tuned to the radius we actually search (separation radius is
+ * tightest; k-NN search expands if needed). A cell size ≈ 1.5× the typical
+ * search radius gives the best amortised cost.
+ * ------------------------------------------------------------------------ */
+const cellSize = 35;
+/** @type {Map<number, Boid[]>} */
+const grid = new Map();
+function cellKey(cx, cy) { return cx * 73856093 ^ cy * 19349663; }
+
+function buildGrid() {
+  grid.clear();
+  for (const b of boids) {
+    const cx = Math.floor(b.x / cellSize);
+    const cy = Math.floor(b.y / cellSize);
+    const k = cellKey(cx, cy);
+    const bucket = grid.get(k);
+    if (bucket) bucket.push(b); else grid.set(k, [b]);
+  }
+}
+
+const _scratch = []; // reused per boid to avoid GC churn
+function kNearest(self) {
+  const cx = Math.floor(self.x / cellSize);
+  const cy = Math.floor(self.y / cellSize);
+  _scratch.length = 0;
+
+  // Expand outward in rings until we have at least k candidates.
+  let radius = 1;
+  while (_scratch.length < config.k && radius <= 6) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        // Only scan the new ring on each expansion
+        if (radius > 1 && Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
+        const bucket = grid.get(cellKey(cx + dx, cy + dy));
+        if (!bucket) continue;
+        for (const other of bucket) {
+          if (other === self) continue;
+          const ddx = other.x - self.x;
+          const ddy = other.y - self.y;
+          _scratch.push(other, ddx * ddx + ddy * ddy);
+        }
+      }
+    }
+    radius++;
+  }
+
+  // Partial selection sort to grab the k smallest by squared distance.
+  const k = Math.min(config.k, _scratch.length >> 1);
+  for (let i = 0; i < k; i++) {
+    let minIdx = i;
+    for (let j = i + 1; j < _scratch.length >> 1; j++) {
+      if (_scratch[j * 2 + 1] < _scratch[minIdx * 2 + 1]) minIdx = j;
+    }
+    if (minIdx !== i) {
+      const tb = _scratch[i * 2], td = _scratch[i * 2 + 1];
+      _scratch[i * 2] = _scratch[minIdx * 2];
+      _scratch[i * 2 + 1] = _scratch[minIdx * 2 + 1];
+      _scratch[minIdx * 2] = tb;
+      _scratch[minIdx * 2 + 1] = td;
+    }
+  }
+  return k;
+}
+
+/* --- The three classical forces, plus the predator ----------------------- */
+function applyForces(self) {
+  const n = kNearest(self);
+  let sepX = 0, sepY = 0, sepCount = 0;
+  let aliX = 0, aliY = 0;
+  let cohX = 0, cohY = 0;
+
+  const sepR2 = config.separationRadius * config.separationRadius;
+
+  for (let i = 0; i < n; i++) {
+    const other = _scratch[i * 2];
+    const d2    = _scratch[i * 2 + 1];
+    // Separation — only neighbours that are uncomfortably close push us away.
+    if (d2 < sepR2 && d2 > 0.0001) {
+      const d = Math.sqrt(d2);
+      sepX += (self.x - other.x) / d;
+      sepY += (self.y - other.y) / d;
+      sepCount++;
+    }
+    aliX += other.vx; aliY += other.vy;
+    cohX += other.x;  cohY += other.y;
+  }
+
+  let ax = 0, ay = 0;
+
+  if (sepCount > 0) {
+    ax += (sepX / sepCount) * config.sepWeight;
+    ay += (sepY / sepCount) * config.sepWeight;
+  }
+  if (n > 0) {
+    // Alignment: steer toward avg heading
+    const aMag = Math.hypot(aliX, aliY);
+    if (aMag > 0.001) {
+      const ux = (aliX / aMag) * config.maxSpeed - self.vx;
+      const uy = (aliY / aMag) * config.maxSpeed - self.vy;
+      ax += ux * config.aliWeight * 0.05;
+      ay += uy * config.aliWeight * 0.05;
+    }
+    // Cohesion: steer toward centroid
+    cohX = cohX / n - self.x;
+    cohY = cohY / n - self.y;
+    const cMag = Math.hypot(cohX, cohY);
+    if (cMag > 0.001) {
+      ax += (cohX / cMag) * config.cohWeight * 0.05;
+      ay += (cohY / cMag) * config.cohWeight * 0.05;
+    }
+  }
+
+  // Predator (cursor). Inverse-distance force, capped at predatorRadius.
+  if (mouse.active) {
+    const dx = self.x - mouse.x;
+    const dy = self.y - mouse.y;
+    const d2 = dx * dx + dy * dy;
+    const r2 = config.predatorRadius * config.predatorRadius;
+    if (d2 < r2 && d2 > 0.01) {
+      const d = Math.sqrt(d2);
+      // Stronger as you get closer (1 at center, 0 at edge)
+      const force = (1 - d / config.predatorRadius);
+      ax += (dx / d) * force * config.predWeight * 0.1;
+      ay += (dy / d) * force * config.predWeight * 0.1;
+    }
+  }
+
+  // Clamp net acceleration so birds don't snap-turn.
+  const am = Math.hypot(ax, ay);
+  if (am > config.maxForce) {
+    ax = (ax / am) * config.maxForce;
+    ay = (ay / am) * config.maxForce;
+  }
+  self.ax = ax;
+  self.ay = ay;
+}
+
+function integrate(self) {
+  self.vx += self.ax;
+  self.vy += self.ay;
+  // Speed envelope — starlings can't hover and can't break the sound barrier.
+  const sp = Math.hypot(self.vx, self.vy);
+  if (sp > config.maxSpeed) {
+    self.vx = (self.vx / sp) * config.maxSpeed;
+    self.vy = (self.vy / sp) * config.maxSpeed;
+  } else if (sp < config.minSpeed) {
+    const s = sp < 0.01 ? 1 : sp;
+    self.vx = (self.vx / s) * config.minSpeed;
+    self.vy = (self.vy / s) * config.minSpeed;
+  }
+  self.x += self.vx;
+  self.y += self.vy;
+  // Toroidal world — wrap around edges so the flock is unbounded.
+  const w = W(), h = H();
+  if (self.x < 0) self.x += w; else if (self.x > w) self.x -= w;
+  if (self.y < 0) self.y += h; else if (self.y > h) self.y -= h;
+}
+
+/* --- Render -------------------------------------------------------------- */
+function render() {
+  // Fade previous frame for motion-trail effect.
+  ctx.fillStyle = `rgba(11, 13, 31, ${config.trail})`;
+  ctx.fillRect(0, 0, W(), H());
+
+  ctx.fillStyle = '#e8e8ee';
+  for (const b of boids) {
+    const a = Math.atan2(b.vy, b.vx);
+    const cos = Math.cos(a), sin = Math.sin(a);
+    // Triangle pointing along velocity. Avoids ctx.save/restore overhead.
+    const x = b.x, y = b.y;
+    ctx.beginPath();
+    ctx.moveTo(x + cos * 4,            y + sin * 4);
+    ctx.lineTo(x - cos * 3 + sin * 2,  y - sin * 3 - cos * 2);
+    ctx.lineTo(x - cos * 3 - sin * 2,  y - sin * 3 + cos * 2);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Predator hint ring
+  if (mouse.active) {
+    ctx.strokeStyle = 'rgba(255, 122, 89, 0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(mouse.x, mouse.y, config.predatorRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+/* --- Order parameter (alignment magnitude) ------------------------------- */
+function orderParam() {
+  let sx = 0, sy = 0;
+  for (const b of boids) {
+    const s = Math.hypot(b.vx, b.vy) || 1;
+    sx += b.vx / s; sy += b.vy / s;
+  }
+  return Math.hypot(sx, sy) / boids.length;
+}
+
+/* --- Main loop ----------------------------------------------------------- */
+let lastT = performance.now();
+let frames = 0, fpsT = lastT, fps = 0;
+
+function loop(t) {
+  buildGrid();
+  for (const b of boids) applyForces(b);
+  for (const b of boids) integrate(b);
+  render();
+
+  frames++;
+  if (t - fpsT > 500) {
+    fps = (frames * 1000) / (t - fpsT);
+    frames = 0; fpsT = t;
+    fpsEl.textContent = fps.toFixed(0);
+    boidsEl.textContent = boids.length.toString();
+    orderEl.textContent = orderParam().toFixed(2);
+  }
+  lastT = t;
+  requestAnimationFrame(loop);
+}
+
+/* --- UI wiring ----------------------------------------------------------- */
+const fpsEl   = document.getElementById('stat-fps');
+const boidsEl = document.getElementById('stat-boids');
+const orderEl = document.getElementById('stat-order');
+
+function bind(id, key, format = (x) => x) {
+  const slider = document.getElementById('s-' + id);
+  const label  = document.getElementById('v-' + id);
+  slider.addEventListener('input', () => {
+    const v = parseFloat(slider.value);
+    config[key] = v;
+    label.textContent = format(v);
+    if (key === 'count') {
+      // Add or remove boids without resetting positions of survivors.
+      const target = Math.round(v);
+      while (boids.length < target) {
+        const a = Math.random() * Math.PI * 2;
+        boids.push({
+          x: Math.random() * W(), y: Math.random() * H(),
+          vx: Math.cos(a) * config.maxSpeed, vy: Math.sin(a) * config.maxSpeed,
+          ax: 0, ay: 0,
+        });
+      }
+      if (boids.length > target) boids.length = target;
+    }
+  });
+}
+bind('count', 'count');
+bind('k', 'k');
+bind('sep', 'sepWeight', (x) => x.toFixed(2));
+bind('ali', 'aliWeight', (x) => x.toFixed(2));
+bind('coh', 'cohWeight', (x) => x.toFixed(2));
+bind('pred', 'predWeight', (x) => x.toFixed(1));
+bind('spd', 'maxSpeed', (x) => x.toFixed(1));
+bind('trail', 'trail', (x) => x.toFixed(2));
+
+document.getElementById('btn-reset').addEventListener('click', () => spawn(config.count));
+document.getElementById('btn-scatter').addEventListener('click', () => {
+  for (const b of boids) {
+    const a = Math.random() * Math.PI * 2;
+    b.vx = Math.cos(a) * config.maxSpeed * 1.5;
+    b.vy = Math.sin(a) * config.maxSpeed * 1.5;
+  }
+});
+
+window.addEventListener('mousemove', (e) => {
+  mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true;
+});
+window.addEventListener('mouseout', () => { mouse.active = false; });
+window.addEventListener('mouseleave', () => { mouse.active = false; });
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

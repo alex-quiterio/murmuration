@@ -1,0 +1,135 @@
+:root {
+  --sky-top: #0b0d1f;
+  --sky-mid: #1a2138;
+  --sky-bottom: #2b3a5c;
+  --bird: #e8e8ee;
+  --text: #cfd2dc;
+  --accent: #ff7a59;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: linear-gradient(
+    180deg,
+    var(--sky-top) 0%,
+    var(--sky-mid) 55%,
+    var(--sky-bottom) 100%
+  );
+}
+
+canvas.murmuration {
+  display: block;
+  position: absolute;
+  inset: 0;
+}
+
+.panel {
+  position: fixed;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(8, 10, 22, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+/* ---- Controls ---- */
+.controls {
+  top: 20px;
+  left: 20px;
+  width: 260px;
+}
+.controls h1 {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.controls .sub {
+  font-size: 10px;
+  opacity: 0.55;
+  margin-bottom: 12px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.slider {
+  margin: 9px 0;
+}
+.slider label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  opacity: 0.85;
+  margin-bottom: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.slider input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  height: 14px;
+}
+.row {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+button {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ---- Stats ---- */
+.stats {
+  top: 20px;
+  right: 20px;
+  font-size: 11px;
+  min-width: 130px;
+  font-variant-numeric: tabular-nums;
+}
+.stats .stat {
+  display: flex;
+  justify-content: space-between;
+  opacity: 0.85;
+}
+.stats .stat .v {
+  color: #fff;
+}
+
+/* ---- Legend ---- */
+.legend {
+  bottom: 18px;
+  left: 20px;
+  max-width: 460px;
+  font-size: 11px;
+  line-height: 1.55;
+  opacity: 0.75;
+}
+.legend b {
+  color: #fff;
+  font-weight: 500;
+}
+.legend .cite {
+  opacity: 0.5;
+  font-style: italic;
+}
