@@ -1,0 +1,10 @@
+{
+  // The domain and application layers, compiled without the DOM or Node:
+  // any reference to window, document, canvas, etc. fails the typecheck.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": ["src/domain", "src/application"]
+}

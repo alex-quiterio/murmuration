@@ -1,10 +1,6 @@
-import type { SimStats } from "../sim/types";
+import type { FrameStats } from "../App";
 
-interface Props {
-  stats: SimStats;
-}
-
-export function Stats({ stats }: Props) {
+export function Stats({ stats }: { stats: FrameStats }) {
   return (
     <div className="panel stats">
       <div className="stat">
@@ -13,11 +9,11 @@ export function Stats({ stats }: Props) {
       </div>
       <div className="stat">
         <span>Boids</span>
-        <span className="v">{stats.count}</span>
+        <span className="v">{stats.population}</span>
       </div>
       <div className="stat">
         <span>Cohesion λ</span>
-        <span className="v">{stats.order.toFixed(2)}</span>
+        <span className="v">{stats.polarisation.toFixed(2)}</span>
       </div>
     </div>
   );

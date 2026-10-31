@@ -18,8 +18,19 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
-    "exactOptionalPropertyTypes": false
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": true,
+
+    "paths": {
+      "@domain": ["./src/domain/index.ts"],
+      "@domain/*": ["./src/domain/*"],
+      "@application": ["./src/application/index.ts"],
+      "@application/*": ["./src/application/*"],
+      "@infrastructure": ["./src/infrastructure/index.ts"],
+      "@infrastructure/*": ["./src/infrastructure/*"],
+      "@presentation/*": ["./src/presentation/*"]
+    }
   },
-  "include": ["src"],
+  "include": ["src", "tests"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -24,14 +24,46 @@ Open http://localhost:5173.
 
 ## Architecture
 
-The simulation logic lives in [`src/sim/`](./src/sim/) and is intentionally **not** in React state. Storing 600+ boids in `useState` and triggering a re-render every frame would push the loop through React's fibre scheduler and add 1-2ms per frame.
+The code is organised with Domain-Driven Design, in four layers. Dependencies only point inwards, and each layer has a Vite alias.
 
-Instead:
+```
+src/
+├── domain/          @domain          pure model: no DOM, no React, no clock, no Math.random
+├── application/     @application     use cases + DTOs (MurmurationService, repository port)
+├── infrastructure/  @infrastructure  adapters: spatial hash, canvas renderer, rAF loop, pointer
+├── presentation/    @presentation    React components
+└── main.tsx                          composition root: wires adapters to ports
+```
 
-- [`Simulation`](./src/sim/simulation.ts) owns the boid array and exposes `step()` / `render()`.
-- [`SpatialHash`](./src/sim/spatialHash.ts) does k-NN queries via grid hashing.
-- React holds slider values and low-frequency stats (sampled at 2 Hz).
-- Slider changes mutate `sim.config` directly through a shared reference — the loop sees them on the next tick with no restart.
+**Domain (the Murmuration bounded context).** It is fully immutable and deterministic.
+
+| Concept | Kind | Meaning |
+| --- | --- | --- |
+| `Murmuration` | aggregate root | The flock, its sky, its rules, the falcon, and its `Seed`. Every behaviour (`advance`, `scatter`, `adopt`, `regather`, `sightFalcon`…) returns a new `Murmuration`. |
+| `Starling` | entity | A bird with a stable `StarlingId`. `fly()` returns the same bird a moment later. |
+| `Vector2`, `Sky`, `Falcon`, `Seed` | value objects | Geometry, the toroidal sky, the predator, and a pure PRNG (Mulberry32). |
+| `FlockingRules` = `Perception` + `Instincts` + `FlightEnvelope` | value objects | The tunable rules. Invariants are checked on construction. |
+| `Polarisation` | value object | Vicsek order parameter λ. |
+| `steering` | domain service | Separation, alignment, cohesion and evasion as pure functions. |
+| `NeighbourhoodIndexer` | domain port | "Who are my k nearest?" `bruteForceIndexer` is the reference specification. |
+
+Randomness is a value. Every draw returns a number and the next `Seed`, so the same seed and the same commands always produce the same flock.
+
+**Application.** `MurmurationService` loads the aggregate from a `MurmurationRepository`, calls one behaviour, and saves the result. Queries return flat DTOs (`Tuning`, `MurmurationView`, `FlockMetrics`), so nothing outside the application layer touches domain objects.
+
+**Infrastructure.** `SpatialHashIndexer` implements the indexer port in O(n) per tick, and the tests check it against the brute-force spec. There is also the canvas renderer, the `requestAnimationFrame` loop, and the window and pointer bindings. Motion trails are a rendering concern, so they live here and not in the domain.
+
+**Presentation.** React holds only slider values and stats sampled at 2 Hz. The flock never enters React state.
+
+### Guard rails
+
+- `tsconfig.core.json` compiles `domain` and `application` without the DOM lib, so `window`, `document` and canvas types don't exist there.
+- `tests/architecture.test.ts` uses `import.meta.glob` to enforce the dependency direction and barrel-only imports between layers. It also bans impure calls (`Math.random`, `Date.now`, `performance`, browser globals) in the pure layers.
+
+```bash
+npm test          # vitest: domain behaviour, indexer vs spec, architecture
+npm run typecheck # app + DOM-free core
+```
 
 ## The four forces
 
