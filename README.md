@@ -1,11 +1,10 @@
 # Murmuration
 
-A real-time starling murmuration simulation in React + TypeScript, running on a 2D canvas.
+A real-time starling murmuration simulation in React + TypeScript, running on a 2D canvas: ink-dark starlings at dusk over a reedbed, with your cursor playing the falcon.
 
 ![flock](https://img.shields.io/badge/boids-1500-blue) ![react](https://img.shields.io/badge/react-18-61dafb) ![typescript](https://img.shields.io/badge/typescript-5-3178c6)
 
-<img width="1483" height="814" alt="Screenshot 2026-05-15 at 08 40 49" src="https://github.com/user-attachments/assets/65512d64-a4af-4c56-800e-a4f021a98b8f" />
-
+![A murmuration of starlings at dusk over a reedbed](docs/screenshot.png)
 
 ## Why "topological" boids
 

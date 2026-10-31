@@ -1,10 +1,23 @@
+/*
+ * Dusk over a reedbed. Sky colours are mirrored in
+ * src/infrastructure/CanvasMurmurationRenderer.ts.
+ */
 :root {
-  --sky-top: #0b0d1f;
-  --sky-mid: #1a2138;
-  --sky-bottom: #2b3a5c;
-  --bird: #e8e8ee;
-  --text: #cfd2dc;
-  --accent: #ff7a59;
+  --sky-0: #34335f;
+  --sky-1: #5a4a7c;
+  --sky-2: #a4677f;
+  --sky-3: #df8a6d;
+  --sky-4: #f2b27a;
+  --sky-5: #f8d08f;
+  --ink: #0e0a16;
+  --reed-far: #3a2840;
+  --cream: #f6e9dc;
+  --cream-dim: rgba(246, 233, 220, 0.62);
+  --cream-faint: rgba(246, 233, 220, 0.16);
+  --ember: #ffb27a;
+  --glass: rgba(26, 18, 40, 0.52);
+  --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 * {
@@ -15,121 +28,345 @@ html,
 body,
 #root {
   margin: 0;
-  padding: 0;
   height: 100%;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color: var(--text);
-  background: linear-gradient(
-    180deg,
-    var(--sky-top) 0%,
-    var(--sky-mid) 55%,
-    var(--sky-bottom) 100%
-  );
 }
 
+body {
+  font-family: var(--sans);
+  color: var(--cream);
+  -webkit-font-smoothing: antialiased;
+  background: linear-gradient(180deg, var(--sky-0) 0%, var(--sky-1) 38%, var(--sky-2) 62%, var(--sky-3) 80%, var(--sky-4) 93%, var(--sky-5) 100%);
+}
+
+/* ---- scene layers -------------------------------------------------------- */
+
 canvas.murmuration {
-  display: block;
   position: absolute;
   inset: 0;
+  display: block;
+  cursor: none; /* the falcon is drawn in its place */
 }
+
+.reedbed {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: clamp(110px, 19vh, 200px);
+  pointer-events: none;
+}
+.reedbed .far-bank {
+  fill: var(--reed-far);
+  opacity: 0.9;
+}
+.reedbed .far-reeds {
+  fill: var(--reed-far);
+  opacity: 0.85;
+}
+.reedbed .near-reeds {
+  fill: var(--ink);
+}
+.reedbed g {
+  transform-origin: bottom;
+  animation: sway 9s ease-in-out infinite alternate;
+}
+.reedbed .near-reeds {
+  animation-duration: 7s;
+  animation-delay: -3s;
+}
+@keyframes sway {
+  from {
+    transform: skewX(-0.8deg);
+  }
+  to {
+    transform: skewX(0.9deg);
+  }
+}
+
+/* ---- glass panels -------------------------------------------------------- */
 
 .panel {
   position: fixed;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  background: rgba(8, 10, 22, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  padding: 14px 16px;
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid var(--cream-faint);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px -20px rgba(10, 6, 20, 0.6);
+  animation: arrive 1.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
-/* ---- Controls ---- */
+.panel {
+  transition: opacity 1.4s ease, transform 1.4s ease;
+}
+
+/* When nobody's touching anything, the UI steps back and the flock takes over. */
+.scene.still .panel {
+  opacity: 0.08;
+}
+.scene.still .panel:hover {
+  opacity: 1;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ---- controls ------------------------------------------------------------ */
+
 .controls {
   top: 20px;
   left: 20px;
-  width: 260px;
+  width: 272px;
+  padding: 18px 18px 16px;
 }
+
 .controls h1 {
-  margin: 0 0 2px;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: -0.5px;
 }
+
 .controls .sub {
+  margin: 6px 0 14px;
+  font-size: 12px;
+  color: var(--cream-dim);
+}
+
+details summary {
+  list-style: none;
+  cursor: pointer;
   font-size: 10px;
-  opacity: 0.55;
-  margin-bottom: 12px;
-  letter-spacing: 0.4px;
+  letter-spacing: 1.6px;
   text-transform: uppercase;
-}
-.slider {
-  margin: 9px 0;
-}
-.slider label {
+  color: var(--cream-dim);
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--cream-faint);
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
-  opacity: 0.85;
-  margin-bottom: 3px;
+}
+details summary::-webkit-details-marker {
+  display: none;
+}
+details summary::after {
+  content: "–";
+}
+details:not([open]) summary::after {
+  content: "+";
+}
+
+.slider {
+  display: block;
+  margin: 11px 0;
+}
+.slider-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.slider output {
   font-variant-numeric: tabular-nums;
+  color: var(--cream-dim);
 }
-.slider input[type="range"] {
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
-  accent-color: var(--accent);
   height: 14px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
 }
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--ember) var(--fill), var(--cream-faint) var(--fill));
+}
+input[type="range"]::-moz-range-track {
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--ember) var(--fill), var(--cream-faint) var(--fill));
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--cream);
+  box-shadow: 0 0 0 4px rgba(255, 178, 122, 0.18);
+  transition: box-shadow 0.2s;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: var(--cream);
+  box-shadow: 0 0 0 4px rgba(255, 178, 122, 0.18);
+}
+input[type="range"]:hover::-webkit-slider-thumb,
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 6px rgba(255, 178, 122, 0.32);
+}
+input[type="range"]:focus-visible {
+  outline: none;
+}
+
 .row {
   display: flex;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 8px;
+  margin-top: 14px;
 }
 button {
   flex: 1;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--text);
-  padding: 6px 8px;
-  font-size: 11px;
-  border-radius: 6px;
+  padding: 9px 10px;
+  font: 500 12px var(--sans);
+  letter-spacing: 0.3px;
+  color: var(--cream);
+  background: rgba(246, 233, 220, 0.06);
+  border: 1px solid var(--cream-faint);
+  border-radius: 999px;
   cursor: pointer;
-  font-family: inherit;
+  transition: background 0.2s, border-color 0.2s;
 }
 button:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 178, 122, 0.16);
+  border-color: rgba(255, 178, 122, 0.45);
+}
+button:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
 }
 
-/* ---- Stats ---- */
+/* ---- stats --------------------------------------------------------------- */
+
 .stats {
   top: 20px;
   right: 20px;
-  font-size: 11px;
-  min-width: 130px;
+  width: 168px;
+  padding: 14px 18px 14px;
+  animation-delay: 0.2s;
+}
+.lambda {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--serif);
+}
+.lambda-symbol {
+  font-style: italic;
+  font-size: 22px;
+  color: var(--cream-dim);
+}
+.lambda-value {
+  font-size: 44px;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.stats .stat {
+.mood {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--ember);
+  margin: 2px 0 10px;
+}
+.meter {
+  height: 2px;
+  border-radius: 2px;
+  background: var(--cream-faint);
+  overflow: hidden;
+}
+.meter span {
+  display: block;
+  height: 100%;
+  background: var(--ember);
+  transition: width 0.5s ease;
+}
+.stats dl {
+  margin: 12px 0 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.stats dl div {
   display: flex;
   justify-content: space-between;
-  opacity: 0.85;
+  color: var(--cream-dim);
 }
-.stats .stat .v {
-  color: #fff;
+.stats dd {
+  margin: 0;
+  color: var(--cream);
 }
 
-/* ---- Legend ---- */
+/* ---- legend ------------------------------------------------------------- */
+
 .legend {
-  bottom: 18px;
   left: 20px;
-  max-width: 460px;
-  font-size: 11px;
+  bottom: 20px;
+  max-width: 420px;
+  padding: 12px 16px;
+  font-size: 13px;
   line-height: 1.55;
-  opacity: 0.75;
+  color: var(--cream);
+  background: rgba(16, 10, 26, 0.68);
+  animation-delay: 0.4s;
 }
 .legend b {
-  color: #fff;
+  color: var(--ember);
   font-weight: 500;
 }
 .legend .cite {
-  opacity: 0.5;
+  color: var(--cream-dim);
+  font-family: var(--serif);
   font-style: italic;
+  font-size: 14px;
+}
+
+/* ---- small screens ------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .controls {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    padding: 14px 16px;
+  }
+  .controls h1 {
+    font-size: 30px;
+  }
+  .controls details:not([open]) + .row {
+    margin-top: 8px;
+  }
+  .stats {
+    top: auto;
+    right: 12px;
+    bottom: 12px;
+    width: 128px;
+    padding: 10px 14px;
+  }
+  .lambda-value {
+    font-size: 32px;
+  }
+  .legend {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reedbed g,
+  .panel {
+    animation: none;
+  }
 }

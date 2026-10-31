@@ -1,3 +1,4 @@
+import { type CSSProperties, useState } from "react";
 import { type SettingKey, type Settings, SLIDERS } from "../settings";
 
 interface Props {
@@ -7,36 +8,47 @@ interface Props {
   onScatter: () => void;
 }
 
-export function Controls({ settings, onChange, onRegather, onScatter }: Props) {
-  return (
-    <div className="panel controls">
-      <h1>Murmuration</h1>
-      <div className="sub">Boids with topological neighbours</div>
+/** On small screens the rules start folded away so the sky stays visible. */
+const roomy = () => window.matchMedia("(min-width: 641px)").matches;
 
-      {SLIDERS.map((s) => {
-        const value = settings[s.key];
-        return (
-          <div key={s.key} className="slider">
-            <label>
-              <span>{s.label}</span>
-              <span>{s.format ? s.format(value) : value.toString()}</span>
+export function Controls({ settings, onChange, onRegather, onScatter }: Props) {
+  const [open, setOpen] = useState(roomy);
+  return (
+    <section className="panel controls">
+      <header>
+        <h1>Murmuration</h1>
+        <p className="sub">starlings at dusk, each watching its nearest few</p>
+      </header>
+
+      <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+        <summary>Rules of the flock</summary>
+        {SLIDERS.map((s) => {
+          const value = settings[s.key];
+          const fill = ((value - s.min) / (s.max - s.min)) * 100;
+          return (
+            <label key={s.key} className="slider">
+              <span className="slider-head">
+                <span>{s.label}</span>
+                <output>{s.format ? s.format(value) : value.toString()}</output>
+              </span>
+              <input
+                type="range"
+                min={s.min}
+                max={s.max}
+                step={s.step}
+                value={value}
+                style={{ "--fill": `${fill}%` } as CSSProperties}
+                onChange={(e) => onChange(s.key, parseFloat(e.target.value))}
+              />
             </label>
-            <input
-              type="range"
-              min={s.min}
-              max={s.max}
-              step={s.step}
-              value={value}
-              onChange={(e) => onChange(s.key, parseFloat(e.target.value))}
-            />
-          </div>
-        );
-      })}
+          );
+        })}
+      </details>
 
       <div className="row">
-        <button onClick={onRegather}>Reset</button>
-        <button onClick={onScatter}>Scatter</button>
+        <button onClick={onRegather}>Regather</button>
+        <button onClick={onScatter}>Startle</button>
       </div>
-    </div>
+    </section>
   );
 }
